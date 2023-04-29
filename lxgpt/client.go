@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/lanxinplus/lanxinplus-openapi-go-sdk/sdk"
+	"github.com/yongxinz/lanxinplus-openapi-go-sdk/sdk"
 )
 
 type Client struct {
@@ -15,10 +15,12 @@ type Client struct {
 
 type ClientConfig struct {
 	// lx
-	LxAPIUrl  string
-	AppID     string
-	AppSecret string
-	OrgID     string
+	LxAPIUrl   string
+	AppID      string
+	AppSecret  string
+	OrgID      string
+	HookToken  string
+	HookSecret string
 
 	// server
 	ServerPort string
@@ -26,24 +28,28 @@ type ClientConfig struct {
 }
 
 func New(config *ClientConfig) *Client {
-	res := new(Client)
+	cli := new(Client)
 
-	res.metricsIns = config.Metrics
-	if res.metricsIns == nil {
-		res.metricsIns = new(noneMetrics)
+	cli.metricsIns = config.Metrics
+	if cli.metricsIns == nil {
+		cli.metricsIns = new(noneMetrics)
 	}
 
 	client, _ := sdk.NewClientWithResponses(config.LxAPIUrl)
-	res.lxIns = newLxClient(client, res.metricsIns, config.AppID, config.AppSecret, config.OrgID)
+	cli.lxIns = newLxClient(client, cli.metricsIns, config.AppID, config.AppSecret, config.OrgID, config.HookToken, config.HookSecret)
 
-	res.serverPort = config.ServerPort
+	cli.serverPort = config.ServerPort
 
-	return res
+	return cli
 }
 
 func (r *Client) Start() error {
 	http.HandleFunc("/message", func(w http.ResponseWriter, req *http.Request) {
 		r.lxIns.sendText(req.Context(), req)
+	})
+
+	http.HandleFunc("/webhook/message", func(w http.ResponseWriter, req *http.Request) {
+		r.lxIns.WebHook(req.Context(), req)
 	})
 
 	fmt.Printf("start server: %s ...\n", r.serverPort)

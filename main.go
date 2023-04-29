@@ -33,6 +33,8 @@ func loadConfig() (*lxgpt.ClientConfig, error) {
 		AppID:      os.Getenv("APP_ID"),
 		AppSecret:  os.Getenv("APP_SECRET"),
 		OrgID:      os.Getenv("ORG_ID"),
+		HookToken:  os.Getenv("HOOK_TOKEN"),
+		HookSecret: os.Getenv("HOOK_SECRET"),
 		ServerPort: port,
 	}, nil
 }
