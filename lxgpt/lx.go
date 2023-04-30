@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/yongxinz/lanxinplus-openapi-go-sdk/sdk"
@@ -20,28 +21,26 @@ type lxClient struct {
 	// send message
 	appID     string
 	appSecret string
-	orgID     string
 
 	// webhook bot
 	hookToken  string
 	hookSecret string
 }
 
-func newLxClient(cli *sdk.ClientWithResponses, metricsIns IMetrics, appID, appSecret, orgID, hookToken, hookSecret string) *lxClient {
+func newLxClient(cli *sdk.ClientWithResponses, metricsIns IMetrics, appID, appSecret, hookToken, hookSecret string) *lxClient {
 	return &lxClient{
 		cli:        cli,
 		metricsIns: metricsIns,
 
 		appID:     appID,
 		appSecret: appSecret,
-		orgID:     orgID,
 
 		hookToken:  hookToken,
 		hookSecret: hookSecret,
 	}
 }
 
-func (l *lxClient) sendText(ctx context.Context, r *http.Request) error {
+func (l *lxClient) SendText(ctx context.Context, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {
 		return err
 	}
@@ -49,8 +48,8 @@ func (l *lxClient) sendText(ctx context.Context, r *http.Request) error {
 	mails := r.PostForm["mails"]
 	msg := r.PostFormValue("msg")
 
-	appToken := l.GetV1AppToken()
-	userIds := l.GetUserIdList(appToken, mails)
+	appToken := l.getV1AppToken()
+	userIds := l.getUserIdList(appToken, mails)
 
 	params := sdk.V1MessagesCreateParams{}
 	params.SetAppToken(appToken)
@@ -100,14 +99,18 @@ func (l *lxClient) sendText(ctx context.Context, r *http.Request) error {
 	return err
 }
 
-func (l *lxClient) WebHook(ctx context.Context, t *http.Request) error {
+func (l *lxClient) WebHookHandler(ctx context.Context, t *http.Request) error {
 	if err := t.ParseForm(); err != nil {
 		return err
 	}
 
 	msg := t.PostFormValue("msg")
 
-	sign := l.GenSign()
+	return l.WebHook(ctx, msg)
+}
+
+func (l *lxClient) WebHook(ctx context.Context, msg string) error {
+	sign := l.genSign()
 	params := sdk.V1BotHookMessagesCreateParams{}
 	params.SetHookToken(l.hookToken)
 
@@ -140,7 +143,7 @@ func (l *lxClient) WebHook(ctx context.Context, t *http.Request) error {
 	return err
 }
 
-func (l *lxClient) GetV1AppToken() string {
+func (l *lxClient) getV1AppToken() string {
 	params := sdk.V1AppTokenCreateParams{}
 	params.SetGrantType("client_credential").
 		SetAppid(l.appID).
@@ -159,10 +162,11 @@ func (l *lxClient) GetV1AppToken() string {
 	return resp.GetData().GetAppToken()
 }
 
-func (l *lxClient) GetUserIdList(token string, mails []string) (data []*string) {
+func (l *lxClient) getUserIdList(token string, mails []string) (data []*string) {
+	arr := strings.Split(l.appID, "-")
 	for _, mail := range mails {
 		params := sdk.V2StaffsIdMappingFetchParams{}
-		params.SetAppToken(token).SetIdType("mail").SetIdValue(mail).SetOrgId(l.orgID)
+		params.SetAppToken(token).SetIdType("mail").SetIdValue(mail).SetOrgId(arr[0])
 
 		resp, err := l.cli.V2StaffsIdMappingFetchWithResponse(context.TODO(), &params)
 		if err != nil {
@@ -174,7 +178,7 @@ func (l *lxClient) GetUserIdList(token string, mails []string) (data []*string) 
 	return
 }
 
-func (l *lxClient) GenSign() string {
+func (l *lxClient) genSign() string {
 	timestamp := time.Now().Unix()
 	secret := l.hookSecret
 

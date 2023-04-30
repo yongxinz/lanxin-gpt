@@ -9,6 +9,7 @@ import (
 
 type Client struct {
 	lxIns      *lxClient
+	chatGPTIns *chatGPTClient
 	metricsIns IMetrics
 	serverPort string
 }
@@ -18,9 +19,13 @@ type ClientConfig struct {
 	LxAPIUrl   string
 	AppID      string
 	AppSecret  string
-	OrgID      string
 	HookToken  string
 	HookSecret string
+
+	// ChatGPT
+	ChatGPTAPIKey      string
+	ChatGPTProxy       string
+	ChatGPTProxyEnable bool
 
 	// server
 	ServerPort string
@@ -36,7 +41,11 @@ func New(config *ClientConfig) *Client {
 	}
 
 	client, _ := sdk.NewClientWithResponses(config.LxAPIUrl)
-	cli.lxIns = newLxClient(client, cli.metricsIns, config.AppID, config.AppSecret, config.OrgID, config.HookToken, config.HookSecret)
+	cli.lxIns = newLxClient(
+		client, cli.metricsIns, config.AppID, config.AppSecret, config.HookToken, config.HookSecret)
+
+	cli.chatGPTIns = newChatGPTClient(
+		config.ChatGPTAPIKey, config.ChatGPTProxy, config.ChatGPTProxyEnable, cli.metricsIns)
 
 	cli.serverPort = config.ServerPort
 
@@ -45,11 +54,15 @@ func New(config *ClientConfig) *Client {
 
 func (r *Client) Start() error {
 	http.HandleFunc("/message", func(w http.ResponseWriter, req *http.Request) {
-		r.lxIns.sendText(req.Context(), req)
+		r.lxIns.SendText(req.Context(), req)
 	})
 
 	http.HandleFunc("/webhook/message", func(w http.ResponseWriter, req *http.Request) {
-		r.lxIns.WebHook(req.Context(), req)
+		r.lxIns.WebHookHandler(req.Context(), req)
+	})
+
+	http.HandleFunc("/chat", func(w http.ResponseWriter, req *http.Request) {
+		r.LxMessageReceiverHandler(req.Context(), req)
 	})
 
 	fmt.Printf("start server: %s ...\n", r.serverPort)

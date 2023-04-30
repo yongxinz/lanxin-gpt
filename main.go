@@ -29,12 +29,14 @@ func loadConfig() (*lxgpt.ClientConfig, error) {
 	}
 
 	return &lxgpt.ClientConfig{
-		LxAPIUrl:   os.Getenv("LX_API_URL"),
-		AppID:      os.Getenv("APP_ID"),
-		AppSecret:  os.Getenv("APP_SECRET"),
-		OrgID:      os.Getenv("ORG_ID"),
-		HookToken:  os.Getenv("HOOK_TOKEN"),
-		HookSecret: os.Getenv("HOOK_SECRET"),
-		ServerPort: port,
+		LxAPIUrl:           os.Getenv("LX_API_URL"),
+		AppID:              os.Getenv("APP_ID"),
+		AppSecret:          os.Getenv("APP_SECRET"),
+		HookToken:          os.Getenv("HOOK_TOKEN"),
+		HookSecret:         os.Getenv("HOOK_SECRET"),
+		ChatGPTAPIKey:      os.Getenv("CHATGPT_API_KEY"),
+		ChatGPTProxy:       os.Getenv("CHATGPT_PROXY"),
+		ChatGPTProxyEnable: os.Getenv("CHATGPT_PROXY_ENABLE") == "true",
+		ServerPort:         port,
 	}, nil
 }
